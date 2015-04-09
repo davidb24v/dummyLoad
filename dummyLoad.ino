@@ -21,6 +21,10 @@ const float vMul = (10000.0 + 3300.0)/3300.0;
 const int potPin = 2;
 const int loadPin = 3;
 
+// Number of samples
+const int nSamples = 20;
+const float sampleMul = 1.0 / (float) nSamples;
+
 // Track state
 byte state = 0;
 
@@ -76,8 +80,18 @@ void mAh(int result) {
   lcd.print("mAh");
 }
 
+float sample(int pin) {
+  int sum = 0;
+  analogRead(pin);
+  delay(20);
+  for (int i = 0; i < nSamples; i++) {
+    sum += analogRead(pin);
+  }
+  return (float) sum * sampleMul;
+}
+
 float milliAmps() {
-  float fval = (float) analogRead(potPin);
+  float fval = sample(potPin);
   return vRef*fval/1023.0;
 }
 
@@ -88,7 +102,7 @@ int loadVoltage() {
 }
 
 float milliVolts() {
-  float fval = (float) analogRead(loadPin);
+  float fval = sample(loadPin);
   return vMul*vRef*fval/1023.0;
 }
 
@@ -97,8 +111,8 @@ int batteryVoltage() {
   return int(fval+0.5);
 }
 
-void comma() {
-  Serial.print(",");
+void separator() {
+  Serial.print(" ");
 }
 
 void loop() {
@@ -186,11 +200,11 @@ void loop() {
 
       int mW = int(mA1*bv/1000.0+0.5);
       Serial.print(sec);
-      comma();
+      separator();
       Serial.print(int(cummulative_mAh+0.5));
-      comma();
+      separator();
       Serial.print(bv);
-      comma();
+      separator();
       Serial.println(mW);
     }
     delay(100);
