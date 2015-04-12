@@ -22,17 +22,18 @@ const int potPin = 2;
 const int loadPin = 3;
 
 // Number of samples
-const int nSamples = 20;
+const int nSamples = 30;
 const float sampleMul = 1.0 / (float) nSamples;
 
 // Track state
 byte state = 0;
 
-// keep track of mAh
-float cummulative_mAh = 0.0;
+// keep track of mAh and mWh;
+float cummulative_mAh = 0.0, cummulative_mWh = 0.0;
 
 // Track output times
 int lastOutput = 0;
+long start;
 
 // When to finish
 int batteryCuttoff = 3000;
@@ -52,8 +53,8 @@ void setup() {
   Serial.begin(115200);
 
   // Output initial message
-  Serial.println(F("# Dummy Load v0.1"));
-  lcd.print(F("Dummy Load v0.1"));
+  Serial.println(F("# Dummy Load v0.3"));
+  lcd.print(F("Dummy Load v0.3"));
 
   // Initial delay to show the above message
   delay(1000);
@@ -75,15 +76,26 @@ void mA(int result) {
   display(result);
   lcd.print("mA");
 }
+
+void mW(int result) {
+  display(result);
+  lcd.print("mW");
+}
+
 void mAh(int result) {
   display(result);
   lcd.print("mAh");
 }
 
+void mWh(int result) {
+  display(result);
+  lcd.print("mWh");
+}
+
 float sample(int pin) {
-  int sum = 0;
+  long sum = 0;
   analogRead(pin);
-  delay(20);
+  delay(25);
   for (int i = 0; i < nSamples; i++) {
     sum += analogRead(pin);
   }
@@ -175,6 +187,7 @@ void loop() {
         batteryCuttoff = 800;
       }
     }
+    start = sec;
     return;
   }
 
@@ -182,15 +195,20 @@ void loop() {
     // Normal run time...
     if ( sec != lastOutput ) {
       lastOutput = sec;
+
       float mA1 = milliAmps();
       cummulative_mAh += mA1 / 3600.0;
       int imAh = int(cummulative_mAh+0.5);
+
       int bv = batteryVoltage();
+      float mW1 = mA1 * bv / 1000.0;
+      cummulative_mWh += mW1 / 3600.0;
       if ( bv < batteryCuttoff ) {
         state = 5;
         // Cutoff reached
         digitalWrite(controlPin, HIGH);
       }
+
       lcd.setCursor(9, 0);
       mV(bv);
       lcd.setCursor(0, 1);
@@ -199,16 +217,28 @@ void loop() {
       mA(int(mA1+0.5));
 
       int mW = int(mA1*bv/1000.0+0.5);
-      Serial.print(sec);
-      separator();
-      Serial.print(int(cummulative_mAh+0.5));
+      Serial.print(sec-start+1);
       separator();
       Serial.print(bv);
       separator();
-      Serial.println(mW);
+      Serial.print(cummulative_mAh);
+      separator();
+      Serial.println(cummulative_mWh);
+      separator();
     }
     delay(100);
     return;
+  }
+
+  if ( state == 5 ) {
+    lcd.clear();
+    lcd.print("Done @ ");
+    mV(batteryVoltage());
+    lcd.setCursor(0,1);
+    mAh(int(cummulative_mAh+0.5));
+    lcd.print("; ");
+    mWh(int(cummulative_mWh+0.5));
+    state = 99;
   }
 
 }

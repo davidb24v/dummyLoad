@@ -1,1 +1,4 @@
 build-uno
+screenlog.*
+*.dat
+
